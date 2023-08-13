@@ -170,7 +170,7 @@ export default class VoiceServer {
             this.sendBuffer(encodedVoicePacket);
             this.voiceLastTimestamp = Date.now();
 
-            await new Promise(r => setTimeout(r, 3));
+            await new Promise(r => setTimeout(r, 9));
         }
 
         // @ts-expect-error
