@@ -13,7 +13,7 @@ export let debug = false;
 export default class PlasmoVoice {
 
     // System variables
-    public readonly bot: Bot;
+    private readonly bot: Bot;
 
     // Class initialization
     constructor(bot: Bot) {
@@ -70,7 +70,6 @@ export default class PlasmoVoice {
                     throw new Error(`Unsupported encryption type "${data.encryptionInfo.algorithm}"`);
                 }
 
-                // @ts-expect-error
                 this.bot.emit("voicechat_connected");
                 
                 return;
@@ -99,7 +98,6 @@ export default class PlasmoVoice {
                     return;
                 }
                 
-                // @ts-expect-error
                 this.bot.emit("voicechat_voice_end", {
                     "player": sourceData.playerName,
                     "sequenceNumber": data.sequenceNumber
@@ -112,7 +110,7 @@ export default class PlasmoVoice {
         })
     }
 
-    async sendAudio(file: string, distance: number = 16, speed: number = 1.0, isStereo: boolean = false) {
+    async sendAudio(file: string, distance: number = 16, speed: number = 1.0, isStereo: boolean = false): Promise<void> {
         if (!fs.existsSync(file)) {
             throw new Error("File not found");
         }
@@ -122,30 +120,34 @@ export default class PlasmoVoice {
         VoiceServer.sendPCM(pcmBuffer, distance, isStereo);
     }
 
-    async sendPCM(file: string, distance: number = 16, isStereo: boolean = false) {
+    async sendPCM(file: string, distance: number = 16, isStereo: boolean = false): Promise<void> {
         VoiceServer.sendPCM(fs.readFileSync(file), distance, isStereo);
     }
 
-    async getSampleRate() {
+    getSampleRate(): number {
         return PacketManager.configPacketData.captureInfo.sampleRate;
     }
 
-    async getAllowedDistances() {
-        const proximity = await PacketManager.getProximityActivation();
+    getAllowedDistances(): number[] {
+        const proximity = PacketManager.getProximityActivation();
+        if (!proximity) { return []; }
         return proximity?.distances;
     }
 
-    async getDefaultDistance() {
-        const proximity = await PacketManager.getProximityActivation();
+    getDefaultDistance(): number {
+        const proximity = PacketManager.getProximityActivation();
+        if (!proximity) { return -1; }
         return proximity?.defaultDistance;
     }
 
     // Asked by NonemJS
-    async forceConnect() {
+    forceConnect(): void {
         PacketManager.registerAll();
     }
 
-    // Asked by Apehum
+    /**
+     * @deprecated The method should not be used (pro-users only)
+     */
     async _sendPacket(packetId: string, data: Object) {
         this.bot._client.writeChannel("plasmo:voice/v2",
             {
@@ -155,13 +157,34 @@ export default class PlasmoVoice {
         );
     }
 
-    // Asked by Apehum
+    /**
+     * @deprecated The method should not be used (pro-users only)
+     */
     async _sendPacketUDP(packetId: string, data: Object) {
         const packet = await PacketManager.encodeUDP(data, packetId, VoiceServer.udpSecret);
         VoiceServer.sendBuffer(packet);
     }
 
-    async enableDebug() {
+    /**
+     * @deprecated The method should not be used (pro-users only)
+     */
+    async _getActivationName(activationName: string) {
+        return await VoiceServer.getActivationUUID(activationName);
+    }
+
+    async updateState(microphoneMuted: boolean = false, voiceDisabled: boolean = false) {
+        this.bot._client.writeChannel("plasmo:voice/v2",
+            {
+                "id": "PlayerStatePacket",
+                "data": {
+                    "voiceDisabled": voiceDisabled,
+                    "microphoneMuted": microphoneMuted
+                }
+            }
+        );
+    }
+
+    enableDebug(): void {
         debug = true;
     }
 }
